@@ -1,13 +1,16 @@
 package sbtjsbundler.sbtplugin
 
 import org.scalajs.linker.interface.Report
-import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{fastLinkJS, fullLinkJS, scalaJSLinkerOutputDirectory}
+import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{fastLinkJS, fullLinkJS, jsEnvInput, scalaJSLinkerOutputDirectory}
 import org.scalajs.sbtplugin.{ScalaJSPlugin, Stage}
 import sbt.*
 import sbt.Keys.{baseDirectory, configuration, crossTarget, state, streams}
 import sbt.plugins.JvmPlugin
 import sbtjsbundler.{DevServerProcess, NoOpBundler, SbtJSBundler}
 import sbtjsbundler.sbtplugin.SbtJSBundlerPlugin.autoImport.{bundlerBuildDirectory, bundlerConfigSources, bundlerImplementation, bundlerManagedSources, bundlerOutputDirectory, bundlerTargetDirectory, prepareBundle}
+import org.scalajs.jsenv.Input
+import org.scalajs.jsenv.Input.Script
+
 
 object SbtJSBundlerPlugin extends AutoPlugin {
 
@@ -182,10 +185,6 @@ object SbtJSBundlerPlugin extends AutoPlugin {
 
     Test / prepareBundle := (Test / fastLinkJS / prepareBundle).value,
     Test / bundle := (Test / fastLinkJS / bundle).value,
-    Test / startDevServer := (Test / fastLinkJS / startDevServer).value,
-    Test / stopDevServer := (Test / fastLinkJS / stopDevServer).value,
-    Test / startPreview := (Test / fullLinkJS / startPreview).value,
-    Test / stopPreview := (Test / fullLinkJS / stopPreview).value,
 
     Compile / fastLinkJS / startDevServerProcess := {
       val bundler = scopedBundler(Compile, fastLinkJS).value
@@ -248,6 +247,28 @@ object SbtJSBundlerPlugin extends AutoPlugin {
     generateDevServerScript := (Compile / fastLinkJS / generateDevServerScript).value,
 
     generatePreviewScript := (Compile / fullLinkJS / generatePreviewScript).value,
+
+    Compile / jsEnvInput := {
+      val bundler = scopedBundler(Compile, fastLinkJS).value
+      val outputDirectory = (Compile / fastLinkJS / bundlerOutputDirectory).value.toPath
+      bundler.outputScriptName.map { scriptName =>
+        Input.Script(outputDirectory / scriptName)
+      } match {
+        case Some(input) => Seq(input)
+        case None => (Compile / jsEnvInput).value
+      }
+    },
+
+    Test / jsEnvInput := {
+      val bundler = scopedBundler(Test, fastLinkJS).value
+      val outputDirectory = (Test / fastLinkJS / bundlerOutputDirectory).value.toPath
+      bundler.outputScriptName.map { scriptName =>
+        Input.Script(outputDirectory / scriptName)
+      } match {
+        case Some(input) => Seq(input)
+        case None => (Test / jsEnvInput).value
+      }
+    },
   ) ++
     backgroundTask(
       Compile,

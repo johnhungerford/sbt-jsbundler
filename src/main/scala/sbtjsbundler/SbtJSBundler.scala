@@ -206,7 +206,7 @@ final case class NoOpScopedBundler(
 ) {
 	import scala.sys.process._
 
-	override def outputScriptName: Option[String] = ???
+	override def outputScriptName: Option[String] = Some("main.js")
 
 	override def validateNonScalaSources: Either[String, Unit] = ???
 
