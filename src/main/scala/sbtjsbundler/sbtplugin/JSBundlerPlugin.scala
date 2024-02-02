@@ -5,14 +5,15 @@ import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{fastLinkJS, fullLinkJS, j
 import org.scalajs.sbtplugin.{ScalaJSPlugin, Stage}
 import sbt.*
 import sbt.Keys.{baseDirectory, configuration, crossTarget, state, streams}
+import sbt.nio.Keys.{allInputFiles, changedInputFiles, fileInputs, inputFileStamps}
 import sbt.plugins.JvmPlugin
-import sbtjsbundler.{DevServerProcess, NoOpBundler, SbtJSBundler}
-import sbtjsbundler.sbtplugin.SbtJSBundlerPlugin.autoImport.{bundlerBuildDirectory, bundlerConfigSources, bundlerImplementation, bundlerManagedSources, bundlerOutputDirectory, bundlerTargetDirectory, prepareBundle}
+import sbtjsbundler.{DevServerProcess, JSBundler, NoOpBundler, NpmExecutor, ScopedJSBundler}
+import sbtjsbundler.sbtplugin.JSBundlerPlugin.autoImport.{bundlerBuildDirectory, bundlerConfigSources, bundlerImplementation, bundlerManagedSources, bundlerOutputDirectory, bundlerTargetDirectory, prepareBundle}
 import org.scalajs.jsenv.Input
 import org.scalajs.jsenv.Input.Script
 
 
-object SbtJSBundlerPlugin extends AutoPlugin {
+object JSBundlerPlugin extends AutoPlugin {
 
   override def trigger = allRequirements
   override def requires = ScalaJSPlugin
@@ -21,7 +22,9 @@ object SbtJSBundlerPlugin extends AutoPlugin {
 
     // PUBLIC SETTINGS
 
-    val bundlerImplementation = settingKey[SbtJSBundler]("JS bundler implementation")
+    val bundlerImplementation = settingKey[JSBundler]("JS bundler implementation")
+
+    val bundlerNpmManager = settingKey[NpmExecutor]("NPM package manager to be used for installing and running npm packages")
 
     val bundlerManagedSources = settingKey[Seq[File]]("Non-Scala sources to be bundled with Scala.js outputs")
 
@@ -38,7 +41,7 @@ object SbtJSBundlerPlugin extends AutoPlugin {
 
     // PUBLIC TASKS
 
-    val prepareBundle = taskKey[Boolean]("Prepare code and configuration for bundling")
+    val prepareBundle = taskKey[Unit]("Prepare code and configuration for bundling")
 
     val bundle = taskKey[Unit]("Bundle Scala.js code with dependencies")
 
@@ -75,7 +78,12 @@ object SbtJSBundlerPlugin extends AutoPlugin {
   ) = Def.task {
     val bundler = (config / jsScope / bundlerImplementation).value
 
-    val inputScript = if (config == Test) Some(file("main.js")) else None
+    val inputScriptOpt = {
+      if (config == Test) {
+        val testOutputDir = (Test / jsScope / scalaJSLinkerOutputDirectory).value
+        Some(ScopedJSBundler.InputSource(testOutputDir, file("main.js")))
+      } else None
+    }
 
     val stage = if (jsScope == fullLinkJS) Stage.FullOpt else Stage.FastOpt
 
@@ -83,11 +91,12 @@ object SbtJSBundlerPlugin extends AutoPlugin {
 
     bundler.scoped(
       (config / jsScope / bundlerConfigSources).value,
-      (config / jsScope / scalaJSLinkerOutputDirectory).value,
+      (Compile / jsScope / scalaJSLinkerOutputDirectory).value,
+      inputScriptOpt,
       (config / jsScope / bundlerManagedSources).value,
       (config / jsScope / bundlerOutputDirectory).value,
       (config / jsScope / bundlerBuildDirectory).value,
-      inputScript,
+      (config / jsScope / bundlerNpmManager).value,
       stage,
       config,
       log,
@@ -126,6 +135,7 @@ object SbtJSBundlerPlugin extends AutoPlugin {
     val targetSubdir = if (config == Test) s"$targetSubdirBase-test" else targetSubdirBase
 
     Seq(
+      config / jsScope / bundlerNpmManager := bundlerNpmManager.value,
       config / jsScope / bundlerManagedSources := bundlerManagedSources.value,
       config / jsScope / bundlerConfigSources := bundlerConfigSources.value,
       config / jsScope / bundlerImplementation := bundlerImplementation.value,
@@ -134,24 +144,63 @@ object SbtJSBundlerPlugin extends AutoPlugin {
       config / jsScope / bundlerBuildDirectory := (config / jsScope / bundlerTargetDirectory).value / "build",
       config / jsScope / bundlerOutputDirectory := (config / jsScope / bundlerTargetDirectory).value / "dist",
 
+      config / jsScope / prepareBundle / fileInputs ++= {
+        (config / jsScope / bundlerManagedSources).value.flatMap { source =>
+            val absSource = source.getAbsoluteFile
+            Seq(
+              Glob(absSource, RelativeGlob.**),
+              Glob(absSource),
+            )
+        } ++ (config / jsScope / bundlerConfigSources).value.map { source =>
+            Glob(source.getAbsoluteFile)
+        } ++ Seq(
+          Glob(
+            (Compile / jsScope / scalaJSLinkerOutputDirectory).value.getAbsoluteFile,
+            RelativeGlob.**,
+          ),
+        ) ++ {
+          if (config == Test)
+            Seq(Glob(
+              (Test / jsScope / scalaJSLinkerOutputDirectory).value.getAbsoluteFile,
+              RelativeGlob.**),
+            )
+          else Nil
+        }
+      },
+
       config / jsScope / prepareBundle := {
+        val changes = (config / jsScope / prepareBundle / changedInputFiles).value
+        val current = (config / jsScope / prepareBundle / allInputFiles).value
+        val previous = Previous.runtimeInEnclosingTask(config / jsScope / prepareBundle / inputFileStamps).value
+        val fileChanges = previous.map(changes).getOrElse(FileChanges.noPrevious(current))
         val bundler = scopedBundler(config, jsScope).value
-        bundler.prepareBuildContext match {
-          case Left(message) =>
-            throw new MessageOnlyException(s"Bundler failed to prepare build context: $message")
-          case Right(value) => value
+        if (fileChanges.hasChanges) {
+          bundler.prepareBuildContext match {
+            case Left(message) =>
+              throw new MessageOnlyException(s"Bundler failed to prepare build context: $message")
+            case _ => {}
+          }
         }
       },
 
       config / jsScope / prepareBundle :=
         (config / jsScope / prepareBundle).dependsOn(config / jsScope).value,
 
+      config / jsScope / bundle / fileInputs :=
+        (config / jsScope / prepareBundle / fileInputs).value,
+
       config / jsScope / bundle := {
+        val changes = (config / jsScope / bundle / changedInputFiles).value
+        val current = (config / jsScope / bundle / allInputFiles).value
+        val previous = Previous.runtimeInEnclosingTask(config / jsScope / bundle / inputFileStamps).value
+        val fileChanges = previous.map(changes).getOrElse(FileChanges.noPrevious(current))
         val bundler = scopedBundler(config, jsScope).value
-        bundler.build match {
-          case Left(message) =>
-            throw new MessageOnlyException(s"Bundler failed to build: $message")
-          case Right(value) => value
+        if (fileChanges.hasChanges) {
+          bundler.installAndBuild match {
+            case Left(message) =>
+              throw new MessageOnlyException(s"Bundler failed to build: $message")
+            case Right(value) => value
+          }
         }
       },
 
@@ -172,6 +221,7 @@ object SbtJSBundlerPlugin extends AutoPlugin {
   } yield setting)
 
   override lazy val projectSettings = Seq(
+    bundlerNpmManager := NpmExecutor.Default,
     bundlerManagedSources := Nil,
     bundlerConfigSources := Nil,
     bundlerImplementation := NoOpBundler,
@@ -250,9 +300,8 @@ object SbtJSBundlerPlugin extends AutoPlugin {
 
     Compile / jsEnvInput := {
       val bundler = scopedBundler(Compile, fastLinkJS).value
-      val outputDirectory = (Compile / fastLinkJS / bundlerOutputDirectory).value.toPath
-      bundler.outputScriptName.map { scriptName =>
-        Input.Script(outputDirectory / scriptName)
+      bundler.outputScript.map { script =>
+        Input.Script(script.toPath)
       } match {
         case Some(input) => Seq(input)
         case None => (Compile / jsEnvInput).value
@@ -261,9 +310,8 @@ object SbtJSBundlerPlugin extends AutoPlugin {
 
     Test / jsEnvInput := {
       val bundler = scopedBundler(Test, fastLinkJS).value
-      val outputDirectory = (Test / fastLinkJS / bundlerOutputDirectory).value.toPath
-      bundler.outputScriptName.map { scriptName =>
-        Input.Script(outputDirectory / scriptName)
+      bundler.outputScript.map { script =>
+        Input.Script(script.toPath)
       } match {
         case Some(input) => Seq(input)
         case None => (Test / jsEnvInput).value
