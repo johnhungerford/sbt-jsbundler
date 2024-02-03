@@ -50,10 +50,13 @@ object ViteConfigGen {
 	): Either[ValidationError, String] = {
 		for {
 			_ <- validatePathForJSInjection(rootDirPath).toLeft(())
-			_ <- inputPath.fold[Either[ValidationError, Unit]](Right(()))(v => validatePathForJSInjection(v).toLeft(()))
+			_ <- inputPath.fold[Either[ValidationError, Unit]](Right(()))(
+				v => validatePathForJSInjection(v).toLeft(())
+			)
 			_ <- validatePathForJSInjection(outDirPath).toLeft(())
-			_ <- sourcePaths.foldLeft[Either[ValidationError, Unit]](Right(())) { (currentEither, nextPath) =>
-				currentEither.flatMap(_ => validatePathForJSInjection(nextPath).toLeft(()))
+			_ <- sourcePaths.foldLeft[Either[ValidationError, Unit]](Right(())) {
+				(currentEither, nextPath) =>
+					currentEither.flatMap(_ => validatePathForJSInjection(nextPath).toLeft(()))
 			}
 		} yield combineAll(
 			otherImports ++ generateImportStatements(sourcePaths),
@@ -146,11 +149,11 @@ object ViteConfigGen {
 		   |  root: "$rootDirPath",
 		   |  plugins: $pluginsValue,
 		   |  build: {
+		   |  	outDir: "$outputDirPath",
 		   |    rollupOptions: {${inputPath.fold("")(v => s"""\n      input: "${v}",""")}
 		   |      plugins: $rollupPluginsValue,
 		   |      output: {
 		   |      	entryFileNames: `[name].js`,
-		   |        dir: "$outputDirPath",
 		   |      },
 		   |    },
 		   |  },

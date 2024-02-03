@@ -158,12 +158,58 @@ final case class ViteJSBundler(
 			)
 		}
 
-		override def startDevServer(): DevServerProcess = ???
+		override def startDevServer(): DevServerProcess = {
+			val (extraArgs, environment) = stage match {
+				case Stage.FastOpt => devExtraArgs -> devEnvironment
+				case Stage.FullOpt => prodExtraArgs -> prodEnvironment
+			}
+			val configPath = viteConfigFile.getAbsolutePath
+			val command = s"-c $configPath" +: extraArgs
+			DevServerProcess(npmExecutor.runProcess(
+				"vite",
+				"vite",
+				command,
+				environment,
+				Some(buildContextDirectory),
+			))
+		}
 
-		override def startPreview(): DevServerProcess = ???
+		override def startPreview(): DevServerProcess = {
+			val (extraArgs, environment) = stage match {
+				case Stage.FastOpt => devExtraArgs -> devEnvironment
+				case Stage.FullOpt => prodExtraArgs -> prodEnvironment
+			}
+			val configPath = viteConfigFile.getAbsolutePath
+			val command = s"preview -c $configPath" +: extraArgs
+			DevServerProcess(npmExecutor.runProcess(
+				"vite",
+				"vite",
+				command,
+				environment,
+				Some(buildContextDirectory),
+			))
+		}
 
-		override def generateDevServerScript(outputDirectory: sbt.File, name: String): Either[String, Unit] = ???
+		override def generateDevServerScript(outputDirectory: sbt.File, name: String): Either[String, Unit] = {
+			val scriptFile = outputDirectory / name.stripSuffix(".sh").+(".sh")
+			for {
+				script <- ViteScriptGen.generateDevServerScript(viteConfigFile, buildContextDirectory)
+				_ <- Try(IO.write(scriptFile, script))
+				  .toEither.left.map(v => s"Unable to write dev server script to $outputDirectory: $v")
+				_ <- Try(IO.chmod("rwxr-x---", scriptFile))
+				  .toEither.left.map(v => s"Unable to make dev server script executable: $v")
+			} yield ()
+		}
 
-		override def generatePreviewScript(outputDirectory: sbt.File, name: String): Either[String, Unit] = ???
+		override def generatePreviewScript(outputDirectory: sbt.File, name: String): Either[String, Unit] = {
+			val scriptFile = outputDirectory / name.stripSuffix(".sh").+(".sh")
+			for {
+				script <- ViteScriptGen.generatePreviewScript(viteConfigFile, buildContextDirectory)
+				_ <- Try(IO.write(scriptFile, script))
+				  .toEither.left.map(v => s"Unable to write preview script to $outputDirectory: $v")
+				_ <- Try(IO.chmod("rwxr-x---", scriptFile))
+				  .toEither.left.map(v => s"Unable to make preview script executable: $v")
+			} yield ()
+		}
 	}
 }

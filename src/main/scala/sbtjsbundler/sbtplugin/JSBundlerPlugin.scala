@@ -1,16 +1,13 @@
 package sbtjsbundler.sbtplugin
 
+import org.scalajs.jsenv.Input
 import org.scalajs.linker.interface.Report
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{fastLinkJS, fullLinkJS, jsEnvInput, scalaJSLinkerOutputDirectory}
 import org.scalajs.sbtplugin.{ScalaJSPlugin, Stage}
 import sbt.*
-import sbt.Keys.{baseDirectory, configuration, crossTarget, state, streams}
+import sbt.Keys.{baseDirectory, crossTarget, streams}
 import sbt.nio.Keys.{allInputFiles, changedInputFiles, fileInputs, inputFileStamps}
-import sbt.plugins.JvmPlugin
-import sbtjsbundler.{DevServerProcess, JSBundler, NoOpBundler, NpmExecutor, ScopedJSBundler}
-import sbtjsbundler.sbtplugin.JSBundlerPlugin.autoImport.{bundlerBuildDirectory, bundlerConfigSources, bundlerImplementation, bundlerManagedSources, bundlerOutputDirectory, bundlerTargetDirectory, prepareBundle}
-import org.scalajs.jsenv.Input
-import org.scalajs.jsenv.Input.Script
+import sbtjsbundler.*
 
 
 object JSBundlerPlugin extends AutoPlugin {
@@ -70,7 +67,7 @@ object JSBundlerPlugin extends AutoPlugin {
     private[sbtjsbundler] val startPreviewProcess = taskKey[DevServerProcess]("Start the preview server")
   }
 
-  import autoImport._
+  import autoImport.*
 
   private def scopedBundler(
     config: Configuration,
@@ -264,6 +261,11 @@ object JSBundlerPlugin extends AutoPlugin {
       bundler.generateDevServerScript(outputDirectory, scriptName)
     },
 
+    Compile / fastLinkJS / generateDevServerScript :=
+      (Compile / fastLinkJS / generateDevServerScript).dependsOn(
+        Compile / fastLinkJS / bundle,
+      ).value,
+
     Compile / fullLinkJS / bundlerServerScriptDirectory :=
       baseDirectory.value,
 
@@ -276,6 +278,11 @@ object JSBundlerPlugin extends AutoPlugin {
       bundler.generateDevServerScript(outputDirectory, scriptName)
     },
 
+    Compile / fullLinkJS / generateDevServerScript :=
+      (Compile / fullLinkJS / generateDevServerScript).dependsOn(
+        Compile / fullLinkJS / bundle,
+      ).value,
+
     Compile / fullLinkJS / bundlerPreviewScriptName := "start-preview",
 
     Compile / fullLinkJS / generatePreviewScript := {
@@ -285,6 +292,11 @@ object JSBundlerPlugin extends AutoPlugin {
       bundler.generatePreviewScript(outputDirectory, scriptName)
     },
 
+    Compile / fullLinkJS / generatePreviewScript :=
+      (Compile / fullLinkJS / generatePreviewScript).dependsOn(
+        Compile / fullLinkJS / bundle,
+      ).value,
+
     Compile / fastLinkJS / bundlerPreviewScriptName := "start-preview-dev",
 
     Compile / fastLinkJS / generatePreviewScript := {
@@ -293,6 +305,11 @@ object JSBundlerPlugin extends AutoPlugin {
       val scriptName = (Compile / fastLinkJS / bundlerDevServerScriptName).value
       bundler.generatePreviewScript(outputDirectory, scriptName)
     },
+
+    Compile / fastLinkJS / generatePreviewScript :=
+      (Compile / fastLinkJS / generatePreviewScript).dependsOn(
+        Compile / fastLinkJS / bundle,
+      ).value,
 
     generateDevServerScript := (Compile / fastLinkJS / generateDevServerScript).value,
 
