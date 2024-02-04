@@ -172,7 +172,7 @@ object ViteConfigGen {
 
 	private def generateImportStatements(sourcePaths: List[String]): List[String] = {
 		sourcePaths.zipWithIndex.map {
-			case (path, i) => s"""import ${configName(i)} from '$path';"""
+			case (path, i) => s"""import ${configName(i)} from './$path';"""
 		}
 	}
 

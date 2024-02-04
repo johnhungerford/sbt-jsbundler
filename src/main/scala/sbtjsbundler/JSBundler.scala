@@ -105,10 +105,6 @@ abstract class ScopedJSBundler {
 		  .toEither.left.map { v =>
 			  s"Unexpected error while creating scalajs and input directories in bundler build context: $v"
 		  }
-		_ <- Right {
-			println(s"scalaJsOutputDirectory: $scalaJsOutputDirectory")
-			println(s"scalaJsBuildDir: $scalaJsBuildDir")
-		}
 		_ <- SourceInjector.inject(nonScalaSources, buildContextDirectory)
 		_ <- SourceInjector.inject(Seq(scalaJsOutputDirectory), scalaJsBuildDir)
 		_ <- jsInputSource match {

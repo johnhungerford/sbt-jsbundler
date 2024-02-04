@@ -86,7 +86,8 @@ final case class ViteJSBundler(
 		private val viteCustomPluginFile: sbt.File = resourceDirectory / "customVitePlugin.ts"
 
 		override def prepareConfiguration: Either[String, Unit] = {
-			SourceInjector.inject(configurationSources, buildContextDirectory)
+			IO.createDirectory(resourceDirectory)
+			SourceInjector.inject(configurationSources, resourceDirectory)
 
 			val requiredImports = List(
 				"""import _ from 'lodash'""",
@@ -148,7 +149,7 @@ final case class ViteJSBundler(
 				case Stage.FullOpt => prodExtraArgs -> prodEnvironment
 			}
 			val configPath = viteConfigFile.getAbsolutePath
-			val command = s"build -c $configPath" +: extraArgs
+			val command = s"build -c $configPath --emptyOutDir" +: extraArgs
 			npmExecutor.run(
 				"vite",
 				"vite",

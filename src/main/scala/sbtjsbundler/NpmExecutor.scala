@@ -37,10 +37,13 @@ object NpmExecutor {
 		deps.map(depString).mkString(" ")
 	}
 
-	val Default: NpmExecutor = NpmNpmExecutor
+	val Default: NpmExecutor = NpmNpmExecutor()
 }
 
-object NpmNpmExecutor extends NpmExecutor {
+final case class NpmNpmExecutor(
+	extraArgs: Seq[String] = Nil,
+	environment: Map[String, String] = Map.empty[String, String],
+) extends NpmExecutor {
 	def install(
 		deps: Map[String, String],
 		devDeps: Map[String, String],
@@ -51,18 +54,19 @@ object NpmNpmExecutor extends NpmExecutor {
 		val additionalOptionsStr = additionalOptions.mkString(" ")
 		val baseCommand =
 			s"npm install $additionalOptionsStr"
-		val existingCommand = baseCommand
-		val command = baseCommand + " --save " + NpmExecutor.depsString(deps.toSeq)
-		val devCommand = baseCommand + " --save-dev " + NpmExecutor.depsString(devDeps.toSeq)
+		val extraArgsString =  " " + extraArgs.mkString(" ")
+		val existingCommand = baseCommand + extraArgsString
+		val command = baseCommand + " --save " + NpmExecutor.depsString(deps.toSeq) + extraArgsString
+		val devCommand = baseCommand + " --save-dev " + NpmExecutor.depsString(devDeps.toSeq) + extraArgsString
 
 		println(existingCommand)
-		println(command)
-		println(devCommand)
+		if (deps.nonEmpty) println(command)
+		if (devDeps.nonEmpty) println(devCommand)
 
 		cwd.foreach(sbt.IO.createDirectory)
 		val existingResult = Process(existingCommand, cwd, environment.toSeq*).run().exitValue()
-		val result = Process(command, cwd, environment.toSeq*).run().exitValue()
-		val devResult = Process(devCommand, cwd, environment.toSeq*).run().exitValue()
+		val result = if (deps.isEmpty) 0 else Process(command, cwd, environment.toSeq*).run().exitValue()
+		val devResult = if (devDeps.isEmpty) 0 else Process(devCommand, cwd, environment.toSeq*).run().exitValue()
 
 		for {
 			_ <- if (existingResult == 0) Right(()) else Left(s"Failed to install npm dependencies using npm. Exit code: $result")
