@@ -1,23 +1,29 @@
 import scala.util.Try
 
-name := """sbt-jsbundler"""
-organization := "io.github.johnhungerford"
-version := "0.1-SNAPSHOT"
-
-sbtPlugin := true
-
 inThisBuild(List(
+  name := """sbt-jsbundler""",
+  scalaVersion := "2.12.17",
+  sbtPlugin := true,
   organization := "io.github.johnhungerford",
-  homepage := Some(url("https://github.com/johnhungerford/sbt-jsbundler")),
+  organizationName := "johnhungerford",
+  organizationHomepage := Some(url("https://johnhungerford.github.io")),
+  homepage := Some(url("https://johnhungerford.github.io")),
   licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
+  startYear := Some(2024),
   developers := List(
     Developer(
-      "johnhungerford",
-      "John Hungerford",
-      "hungerfordjustice@gmail.com",
-      url("https://johnhungerford.github.io")
+      id    = "johnhungerford",
+      name  = "John Hungerford",
+      email = "jiveshungerford@gmail.com",
+      url   = url( "https://johnhungerford.github.io" )
     )
-  )
+  ),
+  scmInfo := Some(
+    ScmInfo(
+      url("https://github.com/johnhungerford/sbt-jsbundler"),
+      "scm:git@github.com:johnhungerford/sbt-jsbundler.git"
+    )
+  ),
 ))
 
 console / initialCommands := """import sbtjsbundler._"""
@@ -26,22 +32,6 @@ enablePlugins(ScriptedPlugin)
 // set up 'scripted; sbt plugin for testing sbt plugins
 scriptedLaunchOpts ++=
   Seq("-Xmx1024M")
-
-ThisBuild / githubWorkflowTargetTags ++= Seq("v*")
-ThisBuild / githubWorkflowPublishTargetBranches :=
-  Seq(RefPredicate.StartsWith(Ref.Tag("v")))
-
-ThisBuild / githubWorkflowPublish := Seq(
-  WorkflowStep.Sbt(
-    List("ci-release"),
-    env = Map(
-      "PGP_PASSPHRASE" -> "${{ secrets.PGP_PASSPHRASE }}",
-      "PGP_SECRET" -> "${{ secrets.PGP_SECRET }}",
-      "SONATYPE_PASSWORD" -> "${{ secrets.SONATYPE_PASSWORD }}",
-      "SONATYPE_USERNAME" -> "${{ secrets.SONATYPE_USERNAME }}"
-    )
-  )
-)
 
 addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.15.0")
 
@@ -58,4 +48,5 @@ setPlugins := {
     }
   })
 }
+
 sbtLauncher := sbtLauncher.dependsOn(setPlugins).value
