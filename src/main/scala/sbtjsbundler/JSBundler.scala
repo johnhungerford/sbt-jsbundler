@@ -146,7 +146,6 @@ abstract class ScopedJSBundler {
 object ScopedJSBundler {
 	final case class InputSource(directory: sbt.File, relativeEntryPoint: sbt.File) {
 		require(!relativeEntryPoint.toPath.isAbsolute)
-		require(directory.isDirectory)
 
 		def entryPointFrom(newDirectory: sbt.File): sbt.File = {
 			newDirectory.toPath.resolve(relativeEntryPoint.toPath).toFile
@@ -160,9 +159,11 @@ trait DevServerProcess {
 
 object DevServerProcess {
 	import scala.sys.process._
-	def apply(process: Process): DevServerProcess = new DevServerProcess {
-		override def shutDown(): Either[String, Unit] =
-			Try(process.destroy()).toEither.left.map(_.toString)
+	def apply(process: Process): DevServerProcess = {
+		() => Try {
+			while (process.isAlive())
+				process.destroy()
+		}.toEither.left.map(_.toString)
 	}
 }
 

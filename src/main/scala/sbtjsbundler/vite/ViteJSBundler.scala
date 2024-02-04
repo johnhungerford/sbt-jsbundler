@@ -164,14 +164,12 @@ final case class ViteJSBundler(
 				case Stage.FullOpt => prodExtraArgs -> prodEnvironment
 			}
 			val configPath = viteConfigFile.getAbsolutePath
-			val command = s"-c $configPath" +: extraArgs
-			DevServerProcess(npmExecutor.runProcess(
-				"vite",
-				"vite",
-				command,
-				environment,
-				Some(buildContextDirectory),
-			))
+			val command = s"node ./node_modules/vite/bin/vite.js -c $configPath " +
+			  extraArgs.mkString(" ")
+			val processBuilder = scala.sys.process.Process(command, buildContextDirectory, environment.toSeq*)
+			DevServerProcess(
+				processBuilder.run()
+			)
 		}
 
 		override def startPreview(): DevServerProcess = {
@@ -180,14 +178,12 @@ final case class ViteJSBundler(
 				case Stage.FullOpt => prodExtraArgs -> prodEnvironment
 			}
 			val configPath = viteConfigFile.getAbsolutePath
-			val command = s"preview -c $configPath" +: extraArgs
-			DevServerProcess(npmExecutor.runProcess(
-				"vite",
-				"vite",
-				command,
-				environment,
-				Some(buildContextDirectory),
-			))
+			val command = s"node ./node_modules/vite/bin/vite.js preview -c $configPath " +
+			  extraArgs.mkString(" ")
+			val processBuilder = scala.sys.process.Process(command, buildContextDirectory, environment.toSeq*)
+			DevServerProcess(
+				processBuilder.run()
+			)
 		}
 
 		override def generateDevServerScript(outputDirectory: sbt.File, name: String): Either[String, Unit] = {

@@ -12,3 +12,7 @@ bin
 
 .bsp
 .idea
+
+node_modules
+
+src/sbt-test/**/project/plugins.sbt

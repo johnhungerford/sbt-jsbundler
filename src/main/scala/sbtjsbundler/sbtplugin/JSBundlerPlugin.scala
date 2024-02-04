@@ -5,7 +5,7 @@ import org.scalajs.linker.interface.Report
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{fastLinkJS, fullLinkJS, jsEnvInput, scalaJSLinkerOutputDirectory}
 import org.scalajs.sbtplugin.{ScalaJSPlugin, Stage}
 import sbt.*
-import sbt.Keys.{baseDirectory, crossTarget, streams}
+import sbt.Keys.{baseDirectory, crossTarget, streams, test}
 import sbt.nio.Keys.{allInputFiles, changedInputFiles, fileInputs, inputFileStamps}
 import sbtjsbundler.*
 
@@ -181,7 +181,13 @@ object JSBundlerPlugin extends AutoPlugin {
       },
 
       config / jsScope / prepareBundle :=
-        (config / jsScope / prepareBundle).dependsOn(config / jsScope).value,
+        (config / jsScope / prepareBundle).dependsOn(
+          // Tests need test and compile outputs, Compile just needs compile
+          {
+            if (config == Test) Seq(Test / jsScope, Compile / jsScope)
+            else Seq(Compile / jsScope)
+          }*
+        ).value,
 
       config / jsScope / bundle / fileInputs :=
         (config / jsScope / prepareBundle / fileInputs).value,
@@ -203,11 +209,6 @@ object JSBundlerPlugin extends AutoPlugin {
 
       config / jsScope / bundle :=
         (config / jsScope / bundle).dependsOn(config / jsScope / prepareBundle).value,
-
-      config / jsScope / startDevServerProcess := {
-        val bundler = scopedBundler(config, jsScope).value
-        bundler.startDevServer()
-      },
     )
   }
 
@@ -235,11 +236,11 @@ object JSBundlerPlugin extends AutoPlugin {
 
     Compile / fastLinkJS / startDevServerProcess := {
       val bundler = scopedBundler(Compile, fastLinkJS).value
-      bundler.startPreview()
+      bundler.startDevServer()
     },
 
     Compile / fastLinkJS / startDevServerProcess :=
-      (Compile / fastLinkJS / startDevServerProcess).dependsOn(Compile / fastLinkJS / prepareBundle).value,
+      (Compile / fastLinkJS / startDevServerProcess).dependsOn(Compile / fastLinkJS / bundle).value,
 
     Compile / fullLinkJS / startPreviewProcess := {
       val bundler = scopedBundler(Compile, fullLinkJS).value
@@ -269,7 +270,8 @@ object JSBundlerPlugin extends AutoPlugin {
     Compile / fullLinkJS / bundlerServerScriptDirectory :=
       baseDirectory.value,
 
-    Compile / fullLinkJS / bundlerDevServerScriptName := "start-dev-server-prod",
+    Compile / fullLinkJS / bundlerDevServerScriptName :=
+      (Compile / fastLinkJS / bundlerDevServerScriptName).value + "-prod",
 
     Compile / fullLinkJS / generateDevServerScript := {
       val bundler = scopedBundler(Compile, fullLinkJS).value
@@ -297,7 +299,8 @@ object JSBundlerPlugin extends AutoPlugin {
         Compile / fullLinkJS / bundle,
       ).value,
 
-    Compile / fastLinkJS / bundlerPreviewScriptName := "start-preview-dev",
+    Compile / fastLinkJS / bundlerPreviewScriptName :=
+      (Compile / fullLinkJS / bundlerPreviewScriptName).value + "-dev",
 
     Compile / fastLinkJS / generatePreviewScript := {
       val bundler = scopedBundler(Compile, fastLinkJS).value
@@ -334,6 +337,10 @@ object JSBundlerPlugin extends AutoPlugin {
         case None => (Test / jsEnvInput).value
       }
     },
+
+    Test / test := (Test / test).dependsOn(
+      Test / fastLinkJS / bundle
+    ).value,
   ) ++
     backgroundTask(
       Compile,
