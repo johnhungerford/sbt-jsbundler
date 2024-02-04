@@ -1,7 +1,6 @@
 import scala.util.Try
 
 inThisBuild(List(
-  name := """sbt-jsbundler""",
   scalaVersion := "2.12.17",
   sbtPlugin := true,
   organization := "io.github.johnhungerford",
@@ -24,6 +23,8 @@ inThisBuild(List(
       "scm:git@github.com:johnhungerford/sbt-jsbundler.git"
     )
   ),
+  sonatypeCredentialHost := "s01.oss.sonatype.org",
+  sonatypeRepository := "https://s01.oss.sonatype.org/service/local",
 ))
 
 console / initialCommands := """import sbtjsbundler._"""
