@@ -7,10 +7,12 @@ import scalajs.js
 import scalajs.js.annotation.*
 import vdom.html_<^.*
 
+// See src/main/styles/buttonPanel.css
 @js.native
 @JSImport("/buttonPanel.css", JSImport.Namespace)
 object ButtonPanelCss extends js.Object
 
+// See src/main/javascript/component/Button.jsx
 @js.native
 @JSImport("/component/Button.jsx", JSImport.Default)
 object ButtonRaw extends js.Object

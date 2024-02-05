@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 
+// See src/main/scala/example/util/Utils.scala
 import { formatNumberString } from 'scalajs:utils.js'
 
 import './display.css'
