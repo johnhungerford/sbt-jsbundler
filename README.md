@@ -12,7 +12,7 @@ This plugin requires sbt 1.0.0+.
 To use sbt-vite in your project, add the following line to `projects/plugins.sbt`:
 
 ```sbt
-addSbtPlugin("io.github.johnhungerford" % "sbt-jsbundler" % "0.0.3")
+addSbtPlugin("io.github.johnhungerford" % "sbt-jsbundler" % "0.0.4")
 ```
 
 In `build.sbt`, include `JSBundlerPlugin` in `.enablePlugins(...)` in any Scala.js project
