@@ -5,6 +5,7 @@ import scalajs.js.annotation.*
 import japgolly.scalajs.react.*
 import example.model.{Operation, Value}
 
+// See src/main/javascript/component/Display.jsx
 @js.native
 @JSImport("/component/Display.jsx", JSImport.Default)
 object DisplayRaw extends js.Object

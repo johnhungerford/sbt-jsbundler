@@ -9,7 +9,8 @@ import scalajs.js.annotation.*
 object Sizzle extends js.Object
 
 trait InitSizzle:
-	// Injects sizzle into global namespace
+	// Injects sizzle into global namespace, which is where the
+	// test-state library imports it from
 	js.Dynamic.global.Sizzle = Sizzle
 
 object TestStateConfig

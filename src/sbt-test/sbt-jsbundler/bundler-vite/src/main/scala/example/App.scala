@@ -9,22 +9,25 @@ import japgolly.scalajs.react.*
 import japgolly.scalajs.react.vdom.html_<^.*
 import example.model.{Action, State}
 
+// Equivalent to: import { toast } from 'toast';
 @js.native
 @JSImport("react-toastify", "toast")
 object toast extends js.Function1[String, Unit]:
 	override def apply(arg1: String): Unit = js.native
 
+// Equivalent to: import { ToastContainer as ToastRaw } from 'toast';
 @js.native
 @JSImport("react-toastify", "ToastContainer")
-object ToastRaw extends js.Object
+object ToastContainerRaw extends js.Object
 
+// See src/main/styles/app.ss
 @js.native
 @JSImport("/app.css", JSImport.Namespace)
 object AppCss extends js.Object
 
 object App {
-	private val Toast =
-		JsComponent.apply[Null, Children.None, Null](ToastRaw)
+	private val ToastContainer =
+		JsComponent.apply[Null, Children.None, Null](ToastContainerRaw)
 
 	class Backend($: BackendScope[Unit, State]):
 		def dispatcher: Dispatcher = new Dispatcher:
@@ -49,7 +52,7 @@ object App {
 					^.className := "webcalc-container",
 					Display.component(Display.Props(displayValue, displayOperation)),
 					ButtonPanel.component(dispatcher),
-					Toast(),
+					ToastContainer(),
 				),
 			)
 
