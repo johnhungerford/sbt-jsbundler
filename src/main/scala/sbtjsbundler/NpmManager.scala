@@ -13,6 +13,16 @@ trait NpmManager {
 }
 
 object NpmManager {
+	final case class Config(
+		installExtraArgs: Seq[String] = Nil,
+		installEnvironment: Map[String, String] = Map.empty[String, String],
+	) {
+		def withArgs(args: String*): Config = copy(installExtraArgs = args)
+		def addArgs(args: String*): Config = copy(installExtraArgs = installExtraArgs ++ args)
+		def withEnv(vars: (String, String)*): Config = copy(installEnvironment = vars.toMap)
+		def addEnv(vars: (String, String)*): Config = copy(installEnvironment = installEnvironment ++ vars)
+	}
+
 	private[sbtjsbundler] def depString(tup: (String, String)): String = {
 		s"${tup._1}@${tup._2}"
 	}
@@ -21,12 +31,11 @@ object NpmManager {
 		deps.map(depString).mkString(" ")
 	}
 
-	val Default: NpmManager = NpmNpmManager()
+	val Default: NpmManager = new NpmNpmManager(NpmManager.Config())
 }
 
-final case class NpmNpmManager(
-	extraArgs: Seq[String] = Nil,
-	environment: Map[String, String] = Map.empty[String, String],
+final class NpmNpmManager(
+	config: NpmManager.Config,
 ) extends NpmManager {
 	def install(
 		deps: Map[String, String],
@@ -38,19 +47,21 @@ final case class NpmNpmManager(
 		val additionalOptionsStr = additionalOptions.mkString(" ")
 		val baseCommand =
 			s"npm install $additionalOptionsStr"
-		val extraArgsString =  " " + extraArgs.mkString(" ")
+		val extraArgsString =  " " + config.installExtraArgs.mkString(" ")
 		val existingCommand = baseCommand + extraArgsString
 		val command = baseCommand + " --save " + NpmManager.depsString(deps.toSeq) + extraArgsString
 		val devCommand = baseCommand + " --save-dev " + NpmManager.depsString(devDeps.toSeq) + extraArgsString
+
+		val env = config.installEnvironment ++ environment
 
 		println(existingCommand)
 		if (deps.nonEmpty) println(command)
 		if (devDeps.nonEmpty) println(devCommand)
 
 		cwd.foreach(sbt.IO.createDirectory)
-		val existingResult = Process(existingCommand, cwd, environment.toSeq*).run().exitValue()
-		val result = if (deps.isEmpty) 0 else Process(command, cwd, environment.toSeq*).run().exitValue()
-		val devResult = if (devDeps.isEmpty) 0 else Process(devCommand, cwd, environment.toSeq*).run().exitValue()
+		val existingResult = Process(existingCommand, cwd, env.toSeq*).run().exitValue()
+		val result = if (deps.isEmpty) 0 else Process(command, cwd, env.toSeq*).run().exitValue()
+		val devResult = if (devDeps.isEmpty) 0 else Process(devCommand, cwd, env.toSeq*).run().exitValue()
 
 		for {
 			_ <- if (existingResult == 0) Right(()) else Left(s"Failed to install npm dependencies using npm. Exit code: $result")
@@ -60,7 +71,7 @@ final case class NpmNpmManager(
 	}
 }
 
-object YarnNpmManager extends NpmManager {
+final class YarnNpmManager(config: NpmManager.Config) extends NpmManager {
 	def install(
 		deps: Map[String, String],
 		devDeps: Map[String, String],
@@ -69,24 +80,37 @@ object YarnNpmManager extends NpmManager {
 		cwd: Option[sbt.File],
 	): Either[String, Unit] = {
 		val additionalOptionsStr = additionalOptions.mkString(" ")
-		val baseCommand = s"yarn add $additionalOptionsStr"
-		val command = baseCommand + " " + NpmManager.depsString(deps.toSeq)
-		val devCommand = baseCommand + " --dev " + NpmManager.depsString(devDeps.toSeq)
+		val installCommand =
+			s"yarn install $additionalOptionsStr"
+		val addCommand =
+			s"yarn add $additionalOptionsStr"
+		val extraArgsString =  " " + config.installExtraArgs.mkString(" ")
+		val existingCommand = installCommand + extraArgsString
+		val command = addCommand + NpmManager.depsString(deps.toSeq) + extraArgsString
+		val devCommand = addCommand + " --dev " + NpmManager.depsString(devDeps.toSeq) + extraArgsString
+
+		val env = config.installEnvironment ++ environment
+
+		println(existingCommand)
+		if (deps.nonEmpty) println(command)
+		if (devDeps.nonEmpty) println(devCommand)
 
 		cwd.foreach(sbt.IO.createDirectory)
-		val existingResult = Process(baseCommand, cwd, environment.toSeq*).run().exitValue()
-		val result = Process(command, cwd, environment.toSeq*).run().exitValue()
-		val devResult = Process(devCommand, cwd, environment.toSeq*).run().exitValue()
+		val existingResult = Process(existingCommand, cwd, env.toSeq*).run().exitValue()
+		val result = if (deps.isEmpty) 0 else Process(command, cwd, env.toSeq*).run().exitValue()
+		val devResult = if (devDeps.isEmpty) 0 else Process(devCommand, cwd, env.toSeq*).run().exitValue()
 
 		for {
-			_ <- if (existingResult == 0) Right(()) else Left(s"Failed to install npm dependencies using npm. Exit code: $result")
-			_ <- if (result == 0) Right(()) else Left(s"Failed to install npm dependencies using npm. Exit code: $result")
-			_ <- if (devResult == 0) Right(()) else Left(s"Failed to install npm dev dependencies using npm. Exit code: $devResult")
+			_ <- if (existingResult == 0) Right(()) else Left(s"Failed to install npm dependencies using yarn. Exit code: $result")
+			_ <- if (result == 0) Right(()) else Left(s"Failed to install npm dependencies using yarn. Exit code: $result")
+			_ <- if (devResult == 0) Right(()) else Left(s"Failed to install npm dev dependencies using yarn. Exit code: $devResult")
 		} yield ()
 	}
 }
 
-object PnpmNpmManager extends NpmManager {
+final class PnpmNpmManager(
+	config: NpmManager.Config
+) extends NpmManager {
 	def install(
 		deps: Map[String, String],
 		devDeps: Map[String, String],
@@ -95,20 +119,30 @@ object PnpmNpmManager extends NpmManager {
 		cwd: Option[sbt.File],
 	): Either[String, Unit] = {
 		val additionalOptionsStr = additionalOptions.mkString(" ")
-		val baseCommand =
+		val installCommand =
+			s"pnpm install $additionalOptionsStr"
+		val addCommand =
 			s"pnpm add $additionalOptionsStr"
-		val command = baseCommand + " " + NpmManager.depsString(deps.toSeq)
-		val devCommand = baseCommand + " --save-dev " + NpmManager.depsString(devDeps.toSeq)
+		val extraArgsString =  " " + config.installExtraArgs.mkString(" ")
+		val existingCommand = installCommand + extraArgsString
+		val command = addCommand + "--save-prod" + NpmManager.depsString(deps.toSeq) + extraArgsString
+		val devCommand = addCommand + " --save-dev " + NpmManager.depsString(devDeps.toSeq) + extraArgsString
+
+		val env = config.installEnvironment ++ environment
+
+		println(existingCommand)
+		if (deps.nonEmpty) println(command)
+		if (devDeps.nonEmpty) println(devCommand)
 
 		cwd.foreach(sbt.IO.createDirectory)
-		val existingResult = Process(baseCommand, cwd, environment.toSeq*).run().exitValue()
-		val result = Process(command, cwd, environment.toSeq*).run().exitValue()
-		val devResult = Process(devCommand, cwd, environment.toSeq*).run().exitValue()
+		val existingResult = Process(existingCommand, cwd, env.toSeq*).run().exitValue()
+		val result = if (deps.isEmpty) 0 else Process(command, cwd, env.toSeq*).run().exitValue()
+		val devResult = if (devDeps.isEmpty) 0 else Process(devCommand, cwd, env.toSeq*).run().exitValue()
 
 		for {
-			_ <- if (existingResult == 0) Right(()) else Left(s"Failed to install npm dependencies using npm. Exit code: $result")
-			_ <- if (result == 0) Right(()) else Left(s"Failed to install npm dependencies using npm. Exit code: $result")
-			_ <- if (devResult == 0) Right(()) else Left(s"Failed to install npm dev dependencies using npm. Exit code: $devResult")
+			_ <- if (existingResult == 0) Right(()) else Left(s"Failed to install npm dependencies using pnpm. Exit code: $result")
+			_ <- if (result == 0) Right(()) else Left(s"Failed to install npm dependencies using pnpm. Exit code: $result")
+			_ <- if (devResult == 0) Right(()) else Left(s"Failed to install npm dev dependencies using pnpm. Exit code: $devResult")
 		} yield ()
 	}
 }

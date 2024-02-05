@@ -206,15 +206,24 @@ To customize the commands used to execute the various `vite` tasks supported by 
 you can configure the bundler implementation:
 
 ```sbt
-bundlerImplementation := sbtjsbundler.vite.ViteJSBundler()
-    .addDevExtraArg("--mode=development")
-    .addDevEnvVariable("NODE_ENV" -> "development") // This one can be very hand
+fastLinkJS / bundlerImplementation := sbtjsbundler.vite.ViteJSBundler(
+    sbtjsbundler.vite.ViteJSBundler.Config()
+        .addEnv("NODE_ENV" -> "development") // This can be necessary for testing
+        .addArgs("--mode=development")
+)
 ```
 
-You can similarly add arguments and environment variables to the npm install commands:
+Note that we have only scoped the above implementation for `fastLinkJS`, which means it 
+will only apply to development builds. `fullLinkJS / bundlerImplementation` will retain the 
+default value, which is `ViteJSBundler(ViteJSBundler.Config())`.
+
+You can similarly add arguments and environment variables to the npm install commands 
+by customizing `bundlerNpmManager`:
 
 ```sbt
-bundlerNpmManager := NpmNpmExecutor(extraArgs = List("--legacy-peer-deps"))
+bundlerNpmManager := NpmManager(
+   NpmManager.Config().addArgs("--legacy-peer-deps")
+)
 ```
 
 ### Vite config overrides

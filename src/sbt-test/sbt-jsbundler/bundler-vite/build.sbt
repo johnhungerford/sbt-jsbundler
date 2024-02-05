@@ -1,14 +1,17 @@
 import org.scalajs.linker.interface.ModuleSplitStyle
 import org.scalajs.sbtplugin.Stage
 import org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv
+import sbtjsbundler.{NpmManager, PnpmNpmManager, YarnNpmManager}
 
 version := "0.1"
 scalaVersion := "3.3.1"
 
 enablePlugins(ScalaJSPlugin, JSBundlerPlugin)
 
-bundlerImplementation := sbtjsbundler.vite.ViteJSBundler()
-	.addDevEnvVariable("NODE_ENV" -> "development")
+fastLinkJS / bundlerImplementation := sbtjsbundler.vite.ViteJSBundler(
+	sbtjsbundler.vite.ViteJSBundler.Config()
+		.addEnv("NODE_ENV" -> "development")
+)
 
 bundlerManagedSources ++= Seq(
 	file("src/main/javascript"),

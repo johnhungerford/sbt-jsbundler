@@ -141,7 +141,6 @@ object JSBundlerPlugin extends AutoPlugin {
       config / jsScope / bundlerNpmManager := bundlerNpmManager.value,
       config / jsScope / bundlerManagedSources := bundlerManagedSources.value,
       config / jsScope / bundlerConfigSources := bundlerConfigSources.value,
-      config / jsScope / bundlerImplementation := bundlerImplementation.value,
 
       config / jsScope / bundlerTargetDirectory := (config / jsScope / crossTarget).value / targetSubdir,
       config / jsScope / bundlerBuildDirectory := (config / jsScope / bundlerTargetDirectory).value / "build",
@@ -245,6 +244,15 @@ object JSBundlerPlugin extends AutoPlugin {
     bundlerManagedSources := Nil,
     bundlerConfigSources := Nil,
     bundlerImplementation := ViteJSBundler(),
+
+    fastLinkJS / bundlerImplementation := bundlerImplementation.value,
+    fullLinkJS / bundlerImplementation := bundlerImplementation.value,
+    Compile / fastLinkJS / bundlerImplementation := (fastLinkJS / bundlerImplementation).value,
+    Compile / fullLinkJS / bundlerImplementation := (fullLinkJS / bundlerImplementation).value,
+    Test / fastLinkJS / bundlerImplementation :=
+      (fastLinkJS / bundlerImplementation).value,
+    Test / fullLinkJS / bundlerImplementation :=
+      (fullLinkJS / bundlerImplementation).value,
 
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.ESModule)

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Example sbt-jsbundler project with bi-directional JS interop",
   "type": "module",
+  "license": "MIT",
   "directories": {
     "test": "test"
   },

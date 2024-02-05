@@ -9,41 +9,20 @@ import sbt.*
 import scala.util.Try
 
 final case class ViteJSBundler(
-	private val prodEnvironment: Map[String, String] = Map.empty[String, String],
-	private val devEnvironment: Map[String, String] = Map.empty[String, String],
-	private val prodExtraArgs: Seq[String] = Nil,
-	private val devExtraArgs: Seq[String] = Nil,
+	config: ViteJSBundler.Config = ViteJSBundler.Config(),
 ) extends JSBundler { outerSelf =>
-	def addEnv(varDef: (String, String)*): ViteJSBundler = {
-		copy(
-			prodEnvironment = prodEnvironment ++ varDef,
-			devEnvironment = devEnvironment ++ varDef,
-		)
-	}
-
-	def addProdEnvVariable(varDef: (String, String)*): ViteJSBundler = {
-		copy(
-			prodEnvironment = prodEnvironment ++ varDef,
-		)
-	}
-
-	def addDevEnvVariable(varDef: (String, String)*): ViteJSBundler = {
-		copy(
-			devEnvironment = devEnvironment ++ varDef,
-		)
-	}
-
-	def addExtraArg(arg: String*): ViteJSBundler = {
-		copy(prodExtraArgs = prodExtraArgs ++ arg, devExtraArgs = devExtraArgs ++ arg)
-	}
-
-	def addProdExtraArg(arg: String*): ViteJSBundler = {
-		copy(prodExtraArgs = prodExtraArgs ++ arg)
-	}
-
-	def addDevExtraArg(arg: String*): ViteJSBundler = {
-		copy(devExtraArgs = devExtraArgs ++ arg)
-	}
+	private lazy val buildEnv =
+		config.environment ++ config.buildEnvironment
+	private lazy val devServEnv =
+		config.environment ++ config.serverEnvironment ++ config.devServerEnvironment
+	private lazy val previewEnv =
+		config.environment ++ config.serverEnvironment ++ config.previewEnvironment
+	private lazy val buildArgs =
+		config.extraArgs ++ config.buildExtraArgs
+	private lazy val devServArgs =
+		config.extraArgs ++ config.serverExtraArgs ++ config.devServerExtraArgs
+	private lazy val previewArgs =
+		config.extraArgs ++ config.serverExtraArgs ++ config.previewExtraArgs
 
 	override def scoped(
 		configurationSources: Seq[sbt.File],
@@ -144,44 +123,32 @@ final case class ViteJSBundler(
 		}
 
 		override def buildBundle: Either[String, Unit] = {
-			val (extraArgs, environment) = stage match {
-				case Stage.FastOpt => devExtraArgs -> devEnvironment
-				case Stage.FullOpt => prodExtraArgs -> prodEnvironment
-			}
 			val configPath = viteConfigFile.getAbsolutePath
-			val command = s"build -c $configPath --emptyOutDir" +: extraArgs
+			val command = s"build -c $configPath --emptyOutDir" +: buildArgs
 			NpmExecutor.run(
 				"vite",
 				"vite",
 				command,
-				environment,
+				buildEnv,
 				Some(buildContextDirectory),
 			)
 		}
 
 		override def startDevServer(): DevServerProcess = {
-			val (extraArgs, environment) = stage match {
-				case Stage.FastOpt => devExtraArgs -> devEnvironment
-				case Stage.FullOpt => prodExtraArgs -> prodEnvironment
-			}
 			val configPath = viteConfigFile.getAbsolutePath
 			val command = s"node ./node_modules/vite/bin/vite.js -c $configPath " +
-			  extraArgs.mkString(" ")
-			val processBuilder = scala.sys.process.Process(command, buildContextDirectory, environment.toSeq*)
+			  devServArgs.mkString(" ")
+			val processBuilder = scala.sys.process.Process(command, buildContextDirectory, devServEnv.toSeq*)
 			DevServerProcess(
 				processBuilder.run()
 			)
 		}
 
 		override def startPreview(): DevServerProcess = {
-			val (extraArgs, environment) = stage match {
-				case Stage.FastOpt => devExtraArgs -> devEnvironment
-				case Stage.FullOpt => prodExtraArgs -> prodEnvironment
-			}
 			val configPath = viteConfigFile.getAbsolutePath
 			val command = s"node ./node_modules/vite/bin/vite.js preview -c $configPath " +
-			  extraArgs.mkString(" ")
-			val processBuilder = scala.sys.process.Process(command, buildContextDirectory, environment.toSeq*)
+			  previewArgs.mkString(" ")
+			val processBuilder = scala.sys.process.Process(command, buildContextDirectory, previewEnv.toSeq*)
 			DevServerProcess(
 				processBuilder.run()
 			)
@@ -208,5 +175,42 @@ final case class ViteJSBundler(
 				  .toEither.left.map(v => s"Unable to make preview script executable: $v")
 			} yield ()
 		}
+	}
+}
+
+object ViteJSBundler {
+	final case class Config(
+		environment: Map[String, String] = Map.empty[String, String],
+		buildEnvironment: Map[String, String] = Map.empty[String, String],
+		serverEnvironment: Map[String, String] = Map.empty[String, String],
+		devServerEnvironment: Map[String, String] = Map.empty[String, String],
+		previewEnvironment: Map[String, String] = Map.empty[String, String],
+		extraArgs: Seq[String] = Nil,
+		buildExtraArgs: Seq[String] = Nil,
+		serverExtraArgs: Seq[String] = Nil,
+		devServerExtraArgs: Seq[String] = Nil,
+		previewExtraArgs: Seq[String] = Nil,
+	) {
+		def withEnv(vars: (String, String)*): Config = copy(environment = vars.toMap)
+		def addEnv(vars: (String, String)*): Config = copy(environment = environment ++ vars)
+		def withBuildEnv(vars: (String, String)*): Config = copy(buildEnvironment = vars.toMap)
+		def addBuildEnv(vars: (String, String)*): Config = copy(buildEnvironment = buildEnvironment ++ vars)
+		def withServerEnv(vars: (String, String)*): Config = copy(serverEnvironment = vars.toMap)
+		def addServerEnv(vars: (String, String)*): Config = copy(serverEnvironment = serverEnvironment ++ vars)
+		def withDevServerEnv(vars: (String, String)*): Config = copy(devServerEnvironment = vars.toMap)
+		def addDevServerEnv(vars: (String, String)*): Config = copy(devServerEnvironment = devServerEnvironment ++ vars)
+		def withPreviewEnv(vars: (String, String)*): Config = copy(previewEnvironment = vars.toMap)
+		def addPreviewEnv(vars: (String, String)*): Config = copy(previewEnvironment = previewEnvironment ++ vars)
+
+		def withArgs(args: String*): Config = copy(extraArgs = args)
+		def addArgs(args: String*): Config = copy(extraArgs = extraArgs ++ args)
+		def withBuildArgs(args: String*): Config = copy(buildExtraArgs = args)
+		def addBuildArgs(args: String*): Config = copy(buildExtraArgs = buildExtraArgs ++ args)
+		def withServerArgs(args: String*): Config = copy(serverExtraArgs = args)
+		def addServerArgs(args: String*): Config = copy(serverExtraArgs = serverExtraArgs ++ args)
+		def withDevServerArgs(args: String*): Config = copy(devServerExtraArgs = args)
+		def addDevServerArgs(args: String*): Config = copy(devServerExtraArgs = devServerExtraArgs ++ args)
+		def withPreviewArgs(args: String*): Config = copy(previewExtraArgs = args)
+		def addPreviewArgs(args: String*): Config = copy(previewExtraArgs = previewExtraArgs ++ args)
 	}
 }
