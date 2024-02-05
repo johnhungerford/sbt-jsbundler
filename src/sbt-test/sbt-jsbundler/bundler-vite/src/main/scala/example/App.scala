@@ -54,6 +54,7 @@ object App {
 			)
 
 	val component =
+		// Get the css side effect
 		val _ = AppCss
 
 		ScalaComponent
@@ -63,11 +64,10 @@ object App {
 			.renderBackend
 			.build
 
-	@JSExportTopLevel("default")
+	@JSExportTopLevel("default", "app")
 	val rawApp =
 		component
 		  .cmapCtorProps[Unit](identity) // Change props from JS to Scala
 		  .toJsComponent // Create a new, real JS component
 		  .raw // Leave the nice Scala wrappers behind and obtain the underlying JS value
-
 }

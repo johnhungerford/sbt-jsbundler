@@ -1,0 +1,83 @@
+> clean
+> fastLinkJS / bundle
+
+$ exists target/scala-3.3.1/jsbundler-fastopt/build/__vite/vite.config-generated.js
+$ exists target/scala-3.3.1/jsbundler-fastopt/build/__vite/customVitePlugin.ts
+$ exists target/scala-3.3.1/jsbundler-fastopt/build/__scalajs/app.js
+$ exists target/scala-3.3.1/jsbundler-fastopt/build/__scalajs/utils.js
+$ exists target/scala-3.3.1/jsbundler-fastopt/build/package.json
+$ exists target/scala-3.3.1/jsbundler-fastopt/build/package-lock.json
+$ exists target/scala-3.3.1/jsbundler-fastopt/build/node_modules
+$ exists target/scala-3.3.1/jsbundler-fastopt/build/index.html
+$ exists target/scala-3.3.1/jsbundler-fastopt/build/main.jsx
+$ exists target/scala-3.3.1/jsbundler-fastopt/build/component
+$ exists target/scala-3.3.1/jsbundler-fastopt/build/public
+$ exists target/scala-3.3.1/jsbundler-fastopt/build/app.css
+$ exists target/scala-3.3.1/jsbundler-fastopt/build/buttonPanel.css
+
+$ exists target/scala-3.3.1/jsbundler-fastopt/dist/index.js
+$ exists target/scala-3.3.1/jsbundler-fastopt/dist/index.html
+$ exists target/scala-3.3.1/jsbundler-fastopt/dist/assets
+
+$ absent target/scala-3.3.1/jsbundler-fastopt/build/__input/main.js
+$ absent target/scala-3.3.1/jsbundler-fastopt-test
+$ absent target/scala-3.3.1/jsbundler-opt
+$ absent target/scala-3.3.1/jsbundler-opt-test
+
+> test
+
+$ exists target/scala-3.3.1/jsbundler-fastopt-test/build/__input/main.js
+$ exists target/scala-3.3.1/jsbundler-fastopt-test/build/__vite/vite.config-generated.js
+$ exists target/scala-3.3.1/jsbundler-fastopt-test/build/__vite/customVitePlugin.ts
+$ exists target/scala-3.3.1/jsbundler-fastopt-test/build/__scalajs/app.js
+$ exists target/scala-3.3.1/jsbundler-fastopt-test/build/__scalajs/utils.js
+$ exists target/scala-3.3.1/jsbundler-fastopt-test/build/package.json
+$ exists target/scala-3.3.1/jsbundler-fastopt-test/build/package-lock.json
+$ exists target/scala-3.3.1/jsbundler-fastopt-test/build/node_modules
+$ exists target/scala-3.3.1/jsbundler-fastopt-test/build/index.html
+$ exists target/scala-3.3.1/jsbundler-fastopt-test/build/main.jsx
+$ exists target/scala-3.3.1/jsbundler-fastopt-test/build/component
+$ exists target/scala-3.3.1/jsbundler-fastopt-test/build/public
+$ exists target/scala-3.3.1/jsbundler-fastopt-test/build/app.css
+$ exists target/scala-3.3.1/jsbundler-fastopt-test/build/buttonPanel.css
+
+$ exists target/scala-3.3.1/jsbundler-fastopt-test/dist/main.js
+
+$ absent target/scala-3.3.1/jsbundler-opt
+$ absent target/scala-3.3.1/jsbundler-opt-test
+
+> fullLinkJS / bundle
+
+$ exists target/scala-3.3.1/jsbundler-opt/build/__vite/vite.config-generated.js
+$ exists target/scala-3.3.1/jsbundler-opt/build/__vite/customVitePlugin.ts
+$ exists target/scala-3.3.1/jsbundler-opt/build/__scalajs/app.js
+$ exists target/scala-3.3.1/jsbundler-opt/build/__scalajs/utils.js
+$ exists target/scala-3.3.1/jsbundler-opt/build/package.json
+$ exists target/scala-3.3.1/jsbundler-opt/build/package-lock.json
+$ exists target/scala-3.3.1/jsbundler-opt/build/node_modules
+$ exists target/scala-3.3.1/jsbundler-opt/build/index.html
+$ exists target/scala-3.3.1/jsbundler-opt/build/main.jsx
+$ exists target/scala-3.3.1/jsbundler-opt/build/component
+$ exists target/scala-3.3.1/jsbundler-opt/build/public
+$ exists target/scala-3.3.1/jsbundler-opt/build/app.css
+$ exists target/scala-3.3.1/jsbundler-opt/build/buttonPanel.css
+
+$ exists target/scala-3.3.1/jsbundler-opt/dist/index.js
+$ exists target/scala-3.3.1/jsbundler-opt/dist/index.html
+$ exists target/scala-3.3.1/jsbundler-opt/dist/assets
+
+$ absent target/scala-3.3.1/jsbundler-opt-test
+
+$ absent start-dev-server.sh
+$ absent start-preview.sh
+
+> generateDevServerScript
+
+$ exists start-dev-server.sh
+
+$ absent start-preview.sh
+
+> generatePreviewScript
+
+$ exists start-preview.sh
+

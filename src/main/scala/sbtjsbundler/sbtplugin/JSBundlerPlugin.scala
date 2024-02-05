@@ -1,13 +1,14 @@
 package sbtjsbundler.sbtplugin
 
 import org.scalajs.jsenv.Input
-import org.scalajs.linker.interface.Report
-import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{fastLinkJS, fullLinkJS, jsEnvInput, scalaJSLinkerOutputDirectory}
+import org.scalajs.linker.interface.{ModuleKind, Report}
+import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{fastLinkJS, fullLinkJS, jsEnvInput, scalaJSLinkerConfig, scalaJSLinkerOutputDirectory}
 import org.scalajs.sbtplugin.{ScalaJSPlugin, Stage}
 import sbt.*
 import sbt.Keys.{baseDirectory, crossTarget, streams, test}
 import sbt.nio.Keys.{allInputFiles, changedInputFiles, fileInputs, inputFileStamps}
 import sbtjsbundler.*
+import sbtjsbundler.vite.ViteJSBundler
 
 
 object JSBundlerPlugin extends AutoPlugin {
@@ -21,7 +22,7 @@ object JSBundlerPlugin extends AutoPlugin {
 
     val bundlerImplementation = settingKey[JSBundler]("JS bundler implementation")
 
-    val bundlerNpmManager = settingKey[NpmExecutor]("NPM package manager to be used for installing and running npm packages")
+    val bundlerNpmManager = settingKey[NpmManager]("NPM package manager to be used for installing and running npm packages")
 
     val bundlerManagedSources = settingKey[Seq[File]]("Non-Scala sources to be bundled with Scala.js outputs")
 
@@ -38,7 +39,9 @@ object JSBundlerPlugin extends AutoPlugin {
 
     // PUBLIC TASKS
 
-    val prepareBundle = taskKey[Unit]("Prepare code and configuration for bundling")
+    val prepareBundleSources = taskKey[Unit]("Prepare code and configuration for bundling")
+
+    val installNpmDependencies = taskKey[Unit]("Install npm dependencies needed to bundle Scala.js project")
 
     val bundle = taskKey[Unit]("Bundle Scala.js code with dependencies")
 
@@ -62,9 +65,9 @@ object JSBundlerPlugin extends AutoPlugin {
 
     // PRIVATE TASKS
 
-    private[sbtjsbundler] val startDevServerProcess = taskKey[DevServerProcess]("Start the dev server")
+    private[sbtjsbundler] val startDevServerProcess = taskKey[() => DevServerProcess]("Start the dev server")
 
-    private[sbtjsbundler] val startPreviewProcess = taskKey[DevServerProcess]("Start the preview server")
+    private[sbtjsbundler] val startPreviewProcess = taskKey[() => DevServerProcess]("Start the preview server")
   }
 
   import autoImport.*
@@ -108,20 +111,23 @@ object JSBundlerPlugin extends AutoPlugin {
   private def backgroundTask(
     config: Configuration,
     jsScope: TaskKey[_],
-    processTask: TaskKey[DevServerProcess],
+    processTask: TaskKey[() => DevServerProcess],
     startTask: TaskKey[Unit],
     stopTask: TaskKey[Unit],
   ) = {
     var _process: Option[DevServerProcess] = None
     Seq(
       config / jsScope / startTask := {
-        val process = (config / jsScope / processTask).value
-        _process = Some(process)
+        val processFunction = (config / jsScope / processTask).value
+        if (_process.isEmpty) {
+          val newProcess = processFunction()
+          _process = Some(newProcess)
+        }
       },
       config / jsScope / stopTask := {
         _process.foreach(_.shutDown())
         _process = None
-      }
+      },
     )
   }
 
@@ -141,7 +147,7 @@ object JSBundlerPlugin extends AutoPlugin {
       config / jsScope / bundlerBuildDirectory := (config / jsScope / bundlerTargetDirectory).value / "build",
       config / jsScope / bundlerOutputDirectory := (config / jsScope / bundlerTargetDirectory).value / "dist",
 
-      config / jsScope / prepareBundle / fileInputs ++= {
+      config / jsScope / prepareBundleSources / fileInputs ++= {
         (config / jsScope / bundlerManagedSources).value.flatMap { source =>
             val absSource = source.getAbsoluteFile
             Seq(
@@ -165,10 +171,10 @@ object JSBundlerPlugin extends AutoPlugin {
         }
       },
 
-      config / jsScope / prepareBundle := {
-        val changes = (config / jsScope / prepareBundle / changedInputFiles).value
-        val current = (config / jsScope / prepareBundle / allInputFiles).value
-        val previous = Previous.runtimeInEnclosingTask(config / jsScope / prepareBundle / inputFileStamps).value
+      config / jsScope / prepareBundleSources := {
+        val changes = (config / jsScope / prepareBundleSources / changedInputFiles).value
+        val current = (config / jsScope / prepareBundleSources / allInputFiles).value
+        val previous = Previous.runtimeInEnclosingTask(config / jsScope / prepareBundleSources / inputFileStamps).value
         val fileChanges = previous.map(changes).getOrElse(FileChanges.noPrevious(current))
         val bundler = scopedBundler(config, jsScope).value
         if (fileChanges.hasChanges) {
@@ -180,8 +186,8 @@ object JSBundlerPlugin extends AutoPlugin {
         }
       },
 
-      config / jsScope / prepareBundle :=
-        (config / jsScope / prepareBundle).dependsOn(
+      config / jsScope / prepareBundleSources :=
+        (config / jsScope / prepareBundleSources).dependsOn(
           // Tests need test and compile outputs, Compile just needs compile
           {
             if (config == Test) Seq(Test / jsScope, Compile / jsScope)
@@ -189,8 +195,22 @@ object JSBundlerPlugin extends AutoPlugin {
           }*
         ).value,
 
+      config / jsScope / installNpmDependencies := {
+        val bundler = scopedBundler(config, jsScope).value
+        bundler.installNpmDependencies match {
+          case Left(message) =>
+            throw new MessageOnlyException(s"Bundler failed to build: $message")
+          case Right(value) => value
+        }
+      },
+
+      config / jsScope / installNpmDependencies :=
+        (config / jsScope / installNpmDependencies).dependsOn(
+          config / jsScope / prepareBundleSources
+        ).value,
+
       config / jsScope / bundle / fileInputs :=
-        (config / jsScope / prepareBundle / fileInputs).value,
+        (config / jsScope / prepareBundleSources / fileInputs).value,
 
       config / jsScope / bundle := {
         val changes = (config / jsScope / bundle / changedInputFiles).value
@@ -199,7 +219,7 @@ object JSBundlerPlugin extends AutoPlugin {
         val fileChanges = previous.map(changes).getOrElse(FileChanges.noPrevious(current))
         val bundler = scopedBundler(config, jsScope).value
         if (fileChanges.hasChanges) {
-          bundler.installAndBuild match {
+          bundler.buildBundle match {
             case Left(message) =>
               throw new MessageOnlyException(s"Bundler failed to build: $message")
             case Right(value) => value
@@ -208,7 +228,9 @@ object JSBundlerPlugin extends AutoPlugin {
       },
 
       config / jsScope / bundle :=
-        (config / jsScope / bundle).dependsOn(config / jsScope / prepareBundle).value,
+        (config / jsScope / bundle).dependsOn(
+          config / jsScope / installNpmDependencies,
+        ).value,
     )
   }
 
@@ -219,36 +241,45 @@ object JSBundlerPlugin extends AutoPlugin {
   } yield setting)
 
   override lazy val projectSettings = Seq(
-    bundlerNpmManager := NpmExecutor.Default,
+    bundlerNpmManager := NpmManager.Default,
     bundlerManagedSources := Nil,
     bundlerConfigSources := Nil,
-    bundlerImplementation := NoOpBundler,
+    bundlerImplementation := ViteJSBundler(),
 
-    prepareBundle := (Compile / fullLinkJS / prepareBundle).value,
+    scalaJSLinkerConfig ~= {
+      _.withModuleKind(ModuleKind.ESModule)
+    },
+
+    prepareBundleSources := (Compile / fullLinkJS / prepareBundleSources).value,
+    installNpmDependencies := (Compile / fullLinkJS / installNpmDependencies).value,
     bundle := (Compile / fullLinkJS / bundle).value,
     startDevServer := (Compile / fastLinkJS / startDevServer).value,
     stopDevServer := (Compile / fastLinkJS / stopDevServer).value,
     startPreview := (Compile / fullLinkJS / startPreview).value,
     stopPreview := (Compile / fullLinkJS / stopPreview).value,
 
-    Test / prepareBundle := (Test / fastLinkJS / prepareBundle).value,
+    Test / prepareBundleSources := (Test / fastLinkJS / prepareBundleSources).value,
     Test / bundle := (Test / fastLinkJS / bundle).value,
 
     Compile / fastLinkJS / startDevServerProcess := {
       val bundler = scopedBundler(Compile, fastLinkJS).value
-      bundler.startDevServer()
+      () => bundler.startDevServer()
     },
 
     Compile / fastLinkJS / startDevServerProcess :=
-      (Compile / fastLinkJS / startDevServerProcess).dependsOn(Compile / fastLinkJS / bundle).value,
+      (Compile / fastLinkJS / startDevServerProcess).dependsOn(
+        Compile / fastLinkJS / installNpmDependencies,
+      ).value,
 
     Compile / fullLinkJS / startPreviewProcess := {
       val bundler = scopedBundler(Compile, fullLinkJS).value
-      bundler.startPreview()
+      () => bundler.startPreview()
     },
 
     Compile / fullLinkJS / startPreviewProcess :=
-      (Compile / fullLinkJS / startPreviewProcess).dependsOn(Compile / fullLinkJS / bundle).value,
+      (Compile / fullLinkJS / startPreviewProcess).dependsOn(
+        Compile / fullLinkJS / bundle,
+      ).value,
 
     Compile / fastLinkJS / bundlerServerScriptDirectory :=
       baseDirectory.value,
@@ -264,7 +295,7 @@ object JSBundlerPlugin extends AutoPlugin {
 
     Compile / fastLinkJS / generateDevServerScript :=
       (Compile / fastLinkJS / generateDevServerScript).dependsOn(
-        Compile / fastLinkJS / bundle,
+        Compile / fastLinkJS / installNpmDependencies,
       ).value,
 
     Compile / fullLinkJS / bundlerServerScriptDirectory :=
@@ -282,7 +313,7 @@ object JSBundlerPlugin extends AutoPlugin {
 
     Compile / fullLinkJS / generateDevServerScript :=
       (Compile / fullLinkJS / generateDevServerScript).dependsOn(
-        Compile / fullLinkJS / bundle,
+        Compile / fullLinkJS / installNpmDependencies,
       ).value,
 
     Compile / fullLinkJS / bundlerPreviewScriptName := "start-preview",

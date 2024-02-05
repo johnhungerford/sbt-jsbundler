@@ -1,11 +1,19 @@
 package example.util
 
-import scala.scalajs.js.annotation.*
+import example.model.Operation
 
-import example.model.Value
+object Utils:
+	def executeOperation(operation: Operation, left: Double, right: Double): Either[String, Double] =
+		operation match
+			case Operation.Plus => Right(left + right)
+			case Operation.Minus => Right(left - right)
+			case Operation.Times => Right(left * right)
+			case Operation.Divide =>
+				if (right == 0) Left("No division by zero!")
+				else Right(left / right)
 
-object FormatNumber:
-	// Inefficient but strings won't be too big
+	import scalajs.js.annotation.*
+	import example.model.Value
 	def addCommasNonDecimal(numberString: String): String =
 		numberString
 		  .reverse
@@ -17,10 +25,11 @@ object FormatNumber:
 
 	/**
 	 * Adds commas to a string-encoded number as appropriate. Detects decimals.
+	 *
 	 * @param numberString number encoded in a string
 	 * @returns {string} A version of strin with commas added as appropriate
 	 */
-	@JSExportTopLevel("formatNumberString")
+	@JSExportTopLevel("formatNumberString", "utils")
 	def formatNumberString(numberString: String): String = numberString match {
 		case Value.NonDecimal() => addCommasNonDecimal(numberString)
 		case Value.Decimal(nonDecimal, decimal) =>
@@ -29,3 +38,4 @@ object FormatNumber:
 		case "" => "0"
 		case _ => throw new RuntimeException(s"Invalid number string: $numberString")
 	}
+

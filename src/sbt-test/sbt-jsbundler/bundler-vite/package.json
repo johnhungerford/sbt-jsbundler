@@ -1,0 +1,9 @@
+{
+  "name": "bundler-vite",
+  "version": "1.0.0",
+  "description": "Testing sbt-jsbundler with Vite",
+  "devDependencies": {
+    "jsdom": "^24.0.0",
+    "source-map-support": "^0.5.21"
+  }
+}

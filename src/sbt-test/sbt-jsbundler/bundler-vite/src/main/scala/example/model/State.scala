@@ -1,6 +1,6 @@
 package example.model
 
-import example.util.ExecuteOperation
+import example.util.Utils
 
 sealed trait State:
 	self =>
@@ -13,7 +13,7 @@ sealed trait State:
 					Right(State.Next(currentTotal, Some(nextOperation), nextValue))
 				case State.Next(currentTotal, Some(operation), nextValue) => for {
 					currentNumber <- nextValue.numberValue
-					result <- ExecuteOperation.executeOperation(operation, currentTotal, currentNumber)
+					result <- Utils.executeOperation(operation, currentTotal, currentNumber)
 				} yield State.Next(
 					result,
 					Some(nextOperation),
@@ -34,7 +34,7 @@ sealed trait State:
 				case State.Next(_, None, _) => Right(self)
 				case State.Next(currentTotal, Some(operation), nextValue) => for {
 					nextNumber <- nextValue.numberValue
-					result <- ExecuteOperation.executeOperation(operation, currentTotal, nextNumber)
+					result <- Utils.executeOperation(operation, currentTotal, nextNumber)
 				} yield State.Initial(Value.fromNumber(result))
 			case Action.ClickCA => Right(State.Initial(Value.empty))
 			case Action.ClickCE => self match

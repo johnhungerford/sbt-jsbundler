@@ -3,7 +3,7 @@ package sbtjsbundler.vite
 import org.scalajs.sbtplugin.Stage
 import sbt.Logger
 import sbt.librarymanagement.Configuration
-import sbtjsbundler.{DevServerProcess, JSBundler, NpmExecutor, ScopedJSBundler, SourceInjector}
+import sbtjsbundler.{DevServerProcess, JSBundler, NpmExecutor, NpmManager, ScopedJSBundler, SourceInjector}
 import sbt.*
 
 import scala.util.Try
@@ -52,7 +52,7 @@ final case class ViteJSBundler(
 		nonScalaSources: Seq[sbt.File],
 		bundleOutputDirectory: sbt.File,
 		buildContextDirectory: sbt.File,
-		npmExecutor: NpmExecutor,
+		npmManager: NpmManager,
 		stage: Stage,
 		configuration: Configuration,
 		logger: Logger,
@@ -63,7 +63,7 @@ final case class ViteJSBundler(
 		nonScalaSources,
 		bundleOutputDirectory,
 		buildContextDirectory,
-		npmExecutor,
+		npmManager,
 		stage,
 		configuration,
 		logger,
@@ -76,7 +76,7 @@ final case class ViteJSBundler(
 		override val nonScalaSources: Seq[sbt.File],
 		override val bundleOutputDirectory: sbt.File,
 		override val buildContextDirectory: sbt.File,
-		override val npmExecutor: NpmExecutor,
+		override val npmManager: NpmManager,
 		override val stage: Stage,
 		override val configuration: Configuration,
 		override val logger: Logger,
@@ -150,7 +150,7 @@ final case class ViteJSBundler(
 			}
 			val configPath = viteConfigFile.getAbsolutePath
 			val command = s"build -c $configPath --emptyOutDir" +: extraArgs
-			npmExecutor.run(
+			NpmExecutor.run(
 				"vite",
 				"vite",
 				command,

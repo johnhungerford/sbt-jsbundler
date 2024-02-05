@@ -44,6 +44,7 @@ setPlugins := {
       val pluginsSbt =
         s"""addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.15.0")
            |addSbtPlugin("io.github.johnhungerford" % "sbt-jsbundler" % "${version.value}")
+		   |libraryDependencies += "org.scala-js" %% "scalajs-env-jsdom-nodejs" % "1.0.0"
            |""".stripMargin
       Try(IO.write(file / "project" / "plugins.sbt", pluginsSbt))
     }
