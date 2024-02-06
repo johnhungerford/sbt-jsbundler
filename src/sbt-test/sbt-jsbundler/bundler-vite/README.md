@@ -1,4 +1,4 @@
-# Example: DependencyManagement.Manual
+# Example: Complex multi-language frontend project
 
 This project uses sbt-jsbundler to build a complex multi-language frontend 
 project.
