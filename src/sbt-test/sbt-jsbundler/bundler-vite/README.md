@@ -191,7 +191,7 @@ sbt fastLinkJS / bundle
 This will generate a bundle which you can retrieve from:
 
 ```shell
-target/scala-3.3.1/bundler-[mode]/bundle
+target/scala-3.3.1/jsbundler-[mode]/bundle
 ```
 
 where `mode` is either `opt` or `fastopt`.
