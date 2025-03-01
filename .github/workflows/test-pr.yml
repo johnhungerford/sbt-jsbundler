@@ -18,7 +18,6 @@ jobs:
         with:
           distribution: corretto
           java-version: 11
-          cache: sbt
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
       - name: Setup Node
