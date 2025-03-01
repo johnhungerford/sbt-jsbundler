@@ -1,4 +1,5 @@
 > clean
+
 > fastLinkJS / bundle
 
 $ exists target/scala-3.3.1/jsbundler-fastopt/build/__vite/vite.config-generated.js
@@ -45,6 +46,12 @@ $ exists target/scala-3.3.1/jsbundler-fastopt-test/dist/main.js
 
 $ absent target/scala-3.3.1/jsbundler-opt
 $ absent target/scala-3.3.1/jsbundler-opt-test
+
+# Update test file and ensure that testOnly reflects updates
+$ delete src/test/scala/example/model/StateUnitTest.scala
+$ copy-file testUpdateFile src/test/scala/example/model/StateUnitTest.scala
+
+-> testOnly example.component.StateUnitTest
 
 > fullLinkJS / bundle
 

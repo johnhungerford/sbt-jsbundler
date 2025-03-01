@@ -5,7 +5,7 @@ import org.scalajs.linker.interface.{ModuleKind, Report}
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{fastLinkJS, fullLinkJS, jsEnvInput, scalaJSLinkerConfig, scalaJSLinkerOutputDirectory}
 import org.scalajs.sbtplugin.{ScalaJSPlugin, Stage}
 import sbt.*
-import sbt.Keys.{baseDirectory, crossTarget, streams, test}
+import sbt.Keys.{baseDirectory, crossTarget, streams, test, testOnly}
 import sbt.nio.Keys.{allInputFiles, changedInputFiles, fileInputs, inputFileStamps}
 import sbtjsbundler.*
 import sbtjsbundler.vite.ViteJSBundler
@@ -380,6 +380,10 @@ object JSBundlerPlugin extends AutoPlugin {
     Test / test := (Test / test).dependsOn(
       Test / fastLinkJS / bundle
     ).value,
+
+    Test / testOnly := (Test / testOnly).dependsOn(
+      Test / fastLinkJS / bundle
+    ).evaluated,
   ) ++
     backgroundTask(
       Compile,

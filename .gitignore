@@ -16,3 +16,6 @@ bin
 node_modules
 
 src/sbt-test/**/project/plugins.sbt
+
+.metals
+.vscode
