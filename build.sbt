@@ -23,6 +23,8 @@ inThisBuild(List(
       "scm:git@github.com:johnhungerford/sbt-jsbundler.git"
     )
   ),
+  resolvers += Resolver.sonatypeCentralSnapshots,
+  resolvers += Resolver.sonatypeCentralRepo("staging")
 ))
 
 console / initialCommands := """import sbtjsbundler._"""
