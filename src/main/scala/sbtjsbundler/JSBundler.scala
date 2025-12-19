@@ -34,8 +34,6 @@ trait JSBundler {
 	 *                             configuration for this bundler within this scope
 	 * @param scalaJsOutputDirectory where compiled Scala.js code can be found to be bundled
 	 *                               with other sources
-	 * @param jsInputSource the script in Scala.js compiled outputs to be used as an entrypoint
-	 *                      for the build (only used for bundling tests)
 	 * @param nonScalaSources a flat list of all sources aside from Scala to be included in build
 	 * @param bundleOutputDirectory directory where the bundle should go
 	 * @param buildContextDirectory working directory for the bundler
@@ -48,7 +46,6 @@ trait JSBundler {
 	def scoped(
 		configurationSources: Seq[sbt.File],
 		scalaJsOutputDirectory: sbt.File,
-		jsInputSource: Option[ScopedJSBundler.InputSource],
 		nonScalaSources: Seq[sbt.File],
 		bundleOutputDirectory: sbt.File,
 		buildContextDirectory: sbt.File,
@@ -66,8 +63,6 @@ trait JSBundler {
  *                             configuration for this bundler within this scope
  * @param scalaJsOutputDirectory where compiled Scala.js code can be found to be bundled
  *                               with other sources
- * @param jsInputSource the source directory and script within it to be used as an entrypoint to
- *                      the bundle. typically only used for tests
  * @param nonScalaSources a flat list of all sources aside from Scala to be included in build
  * @param bundleOutputDirectory directory where the bundle should go
  * @param buildContextDirectory working directory for the bundler
@@ -79,7 +74,6 @@ trait JSBundler {
 abstract class ScopedJSBundler {
 	protected def configurationSources: Seq[sbt.File]
 	protected def scalaJsOutputDirectory: sbt.File
-	protected def jsInputSource: Option[ScopedJSBundler.InputSource]
 	protected def nonScalaSources: Seq[sbt.File]
 	protected def bundleOutputDirectory: sbt.File
 	protected def buildContextDirectory: sbt.File
@@ -89,29 +83,15 @@ abstract class ScopedJSBundler {
 	protected def logger: Logger
 
 	def SCALAJS_BUILD_DIR_NAME: String = "__scalajs"
-	def INPUT_BUILD_DIR_NAME: String = "__input"
 	def scalaJsBuildDir: sbt.File = buildContextDirectory / SCALAJS_BUILD_DIR_NAME
-	def inputBuildDir: sbt.File = buildContextDirectory / INPUT_BUILD_DIR_NAME
-
-	def outputScript: Option[sbt.File] = jsInputSource
-	  .map(_.entryPointFrom(bundleOutputDirectory))
 
 	def validateNonScalaSources: Either[String, Unit] =  Right(())
 
 	def prepareConfiguration: Either[String, Unit]
 
 	def prepareSources: Either[String, Unit] = for {
-		_ <- Try(IO.createDirectories(Seq(scalaJsBuildDir, inputBuildDir)))
-		  .toEither.left.map { v =>
-			  s"Unexpected error while creating scalajs and input directories in bundler build context: $v"
-		  }
 		_ <- SourceInjector.inject(nonScalaSources, buildContextDirectory)
 		_ <- SourceInjector.inject(Seq(scalaJsOutputDirectory), scalaJsBuildDir)
-		_ <- jsInputSource match {
-			case Some(ScopedJSBundler.InputSource(inputDir, _)) =>
-				SourceInjector.inject(Seq(inputDir), inputBuildDir)
-			case None => Right(())
-		}
 	} yield ()
 
 	def prepareBuildContext: Either[String, Unit] = for {

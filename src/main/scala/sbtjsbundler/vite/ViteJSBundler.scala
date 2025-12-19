@@ -27,7 +27,6 @@ final case class ViteJSBundler(
 	override def scoped(
 		configurationSources: Seq[sbt.File],
 		scalaJsOutputDirectory: sbt.File,
-		jsInputSource: Option[ScopedJSBundler.InputSource],
 		nonScalaSources: Seq[sbt.File],
 		bundleOutputDirectory: sbt.File,
 		buildContextDirectory: sbt.File,
@@ -38,7 +37,6 @@ final case class ViteJSBundler(
 	): Scoped = Scoped(
 		configurationSources,
 		scalaJsOutputDirectory,
-		jsInputSource,
 		nonScalaSources,
 		bundleOutputDirectory,
 		buildContextDirectory,
@@ -51,7 +49,6 @@ final case class ViteJSBundler(
 	case class Scoped(
 		override val configurationSources: Seq[sbt.File],
 		override val scalaJsOutputDirectory: sbt.File,
-		override val jsInputSource: Option[ScopedJSBundler.InputSource],
 		override val nonScalaSources: Seq[sbt.File],
 		override val bundleOutputDirectory: sbt.File,
 		override val buildContextDirectory: sbt.File,
@@ -97,11 +94,6 @@ final case class ViteJSBundler(
 				configString <- ViteConfigGen.generate(
 					configurationSources.map(v => v.getName).toList,
 					buildContextDirectory.getAbsolutePath,
-					jsInputSource.map(
-						_.entryPointFrom(
-							inputBuildDir.relativeTo(buildContextDirectory).get,
-						).toPath.toString
-					),
 					bundleOutputDirectory.getAbsolutePath,
 					requiredImports,
 					plugins,

@@ -91,8 +91,7 @@ object JSBundlerPlugin extends AutoPlugin {
 
     bundler.scoped(
       (config / jsScope / bundlerConfigSources).value,
-      (Compile / jsScope / scalaJSLinkerOutputDirectory).value,
-      inputScriptOpt,
+      (config / jsScope / scalaJSLinkerOutputDirectory).value,
       (config / jsScope / bundlerManagedSources).value,
       (config / jsScope / bundlerOutputDirectory).value,
       (config / jsScope / bundlerBuildDirectory).value,
@@ -356,26 +355,6 @@ object JSBundlerPlugin extends AutoPlugin {
     generateDevServerScript := (Compile / fastLinkJS / generateDevServerScript).value,
 
     generatePreviewScript := (Compile / fullLinkJS / generatePreviewScript).value,
-
-    Compile / jsEnvInput := {
-      val bundler = scopedBundler(Compile, fastLinkJS).value
-      bundler.outputScript.map { script =>
-        Input.Script(script.toPath)
-      } match {
-        case Some(input) => Seq(input)
-        case None => (Compile / jsEnvInput).value
-      }
-    },
-
-    Test / jsEnvInput := {
-      val bundler = scopedBundler(Test, fastLinkJS).value
-      bundler.outputScript.map { script =>
-        Input.Script(script.toPath)
-      } match {
-        case Some(input) => Seq(input)
-        case None => (Test / jsEnvInput).value
-      }
-    },
 
     Test / test := (Test / test).dependsOn(
       Test / fastLinkJS / bundle

@@ -29,7 +29,6 @@ object ViteConfigGen {
 	 *                    They will be merged or overwrite each other from "left to right".
 	 *                    In other words, subsequent files will take precedence.
 	 * @param rootDirPath the base directory that vite will use to resolve inputs
-	 * @param inputPath   the path, relative to rootDirPath, of the JS entrypoint to be bundled
 	 * @param outDirPath  the absolute path (or relative to the CWD when executing vite) where
 	 *                    vite will output bundled artifacts
 	 * @param plugins     plugins to add to config. Maps the plugin entry to any import statements
@@ -41,7 +40,6 @@ object ViteConfigGen {
 	def generate(
 		sourcePaths: List[String],
 		rootDirPath: String,
-		inputPath: Option[String],
 		outDirPath: String,
 		otherImports: List[String] = Nil,
 		plugins: List[String] = Nil,
@@ -50,9 +48,6 @@ object ViteConfigGen {
 	): Either[ValidationError, String] = {
 		for {
 			_ <- validatePathForJSInjection(rootDirPath).toLeft(())
-			_ <- inputPath.fold[Either[ValidationError, Unit]](Right(()))(
-				v => validatePathForJSInjection(v).toLeft(())
-			)
 			_ <- validatePathForJSInjection(outDirPath).toLeft(())
 			_ <- sourcePaths.foldLeft[Either[ValidationError, Unit]](Right(())) {
 				(currentEither, nextPath) =>
@@ -64,7 +59,6 @@ object ViteConfigGen {
 			generatePluginsValue(rollupPlugins),
 			generateBuildConfigStatements(sourcePaths.length),
 			rootDirPath,
-			inputPath,
 			outDirPath,
 			development,
 		)
@@ -131,7 +125,6 @@ object ViteConfigGen {
 		rollupPluginsValue: String,
 		buildConfigStatements: List[String],
 		rootDirPath: String,
-		inputPath: Option[String],
 		outputDirPath: String,
 		development: Boolean,
 	): String = {
@@ -150,7 +143,7 @@ object ViteConfigGen {
 		   |  plugins: $pluginsValue,
 		   |  build: {
 		   |  	outDir: "$outputDirPath",
-		   |    rollupOptions: {${inputPath.fold("")(v => s"""\n      input: "${v}",""")}
+		   |    rollupOptions: {
 		   |      plugins: $rollupPluginsValue,
 		   |      output: {
 		   |      	entryFileNames: `[name].js`,
