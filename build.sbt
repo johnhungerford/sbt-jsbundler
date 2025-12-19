@@ -23,8 +23,8 @@ inThisBuild(List(
       "scm:git@github.com:johnhungerford/sbt-jsbundler.git"
     )
   ),
-  sonatypeCredentialHost := "s01.oss.sonatype.org",
-  sonatypeRepository := "https://s01.oss.sonatype.org/service/local",
+//  sonatypeCredentialHost := "s01.oss.sonatype.org",
+//  sonatypeRepository := "https://s01.oss.sonatype.org/service/local",
 ))
 
 console / initialCommands := """import sbtjsbundler._"""
